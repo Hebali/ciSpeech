@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<cinder>
+<block
+	name="ciSpeech"
+	id="org.foil.sphinx"
+	author="Patrick Hebron"
+	summary="CMU pocketsphinx support for Cinder."
+	license="BSD"
+	>
+	<supports os="macosx" />
+	<includePath system="true">include</includePath>
+	<includePath system="true">include/pocketsphinx</includePath>
+	<includePath system="true">include/sphinxbase</includePath>
+	<headerPattern>include/sphinx/*.hpp</headerPattern>
+	<sourcePattern>src/sphinx/*.cpp</sourcePattern>
+	<platform os="macosx">
+		<staticLibrary>lib/macosx/libpocketsphinx.a</staticLibrary>
+		<staticLibrary>lib/macosx/libsphinxbase.a</staticLibrary>
+	</platform>
+</block>
+</cinder>

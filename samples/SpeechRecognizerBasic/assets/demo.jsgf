@@ -1,0 +1,4 @@
+#JSGF V1.0;
+grammar demo;
+
+public <command> = ( open | close ) ( computer | window | music | note );
