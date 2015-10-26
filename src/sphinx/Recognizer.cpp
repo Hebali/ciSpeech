@@ -26,6 +26,20 @@
 
 namespace sphinx {
 	
+	static void loadTextFile(const ci::fs::path& filePath, std::string* output)
+	{
+		std::string line;
+		std::ifstream fh( filePath.c_str() );
+		if( fh.is_open() ) {
+			while( std::getline( fh, line ) )
+				*output += line + "\n";
+			fh.close();
+		}
+		else {
+			throw std::runtime_error( "Could not load file: \"" + filePath.string() + "\"" );
+		}
+	}
+	
 	static void convertFloatToInt16(const float* sourceArray, int16_t* destArray, size_t length)
 	{
 		const float intNormalizer = 32768.0f;
@@ -76,14 +90,18 @@ namespace sphinx {
 		utt_started = false;
 		
 		while( ! mStop ) {
-			// Convert buffer data:
-			std::pair<size_t, size_t> convertResult = converter->convert( &( mMonitorNode->getBuffer() ), &destBuffer );
+			// Convert buffer:
+			std::pair<size_t,size_t> convertResult = converter->convert( &( mMonitorNode->getBuffer() ), &destBuffer );
 
-			int16_t data[ convertResult.second ];
+			// Convert buffer data:
+			int16_t* data = new int16_t[ convertResult.second ];
 			convertFloatToInt16( destBuffer.getData(), data, convertResult.second );
 			
 			// Process buffer:
-			ps_process_raw(mDecoder, data, convertResult.second, false, false);
+			ps_process_raw( mDecoder, data, convertResult.second, false, false );
+			
+			// Cleanup buffer data:
+			delete[] data;
 			
 			in_speech = ps_get_in_speech( mDecoder );
 			
@@ -135,32 +153,22 @@ namespace sphinx {
 	
 	void Recognizer::addModelJsgf(const std::string& key, const ci::fs::path& jsgfPath, bool setActive)
 	{
-		std::string line, data;
-		
-		std::ifstream fh( jsgfPath.c_str() );
-		if( fh.is_open() ) {
-			while( std::getline( fh, line ) )
-				data += line + "\n";
-			fh.close();
-		}
-		else {
-			throw std::runtime_error( "Could not load file: \"" + jsgfPath.string() + "\"" );
-		}
-		
+		std::string data;
+		loadTextFile( jsgfPath, &data );
 		addModelJsgf( key, data, setActive );
 	}
 	
 	void Recognizer::addModelJsgf(const std::string& key, const std::string& jsgfData, bool setActive)
 	{
 		// Create model:
-		fsg_model_t* fsg = jsgf_read_string( jsgfData.c_str(), ps_get_logmath( mDecoder ), 7.5 );
+		fsg_model_t* model = jsgf_read_string( jsgfData.c_str(), ps_get_logmath( mDecoder ), 7.5 );
 		// Verify model creation:
-		if( fsg == NULL )
+		if( model == NULL )
 			throw std::runtime_error( "Could not parse JSGF model" );
 		// Add entry:
-		mModelMap[ key ] = ModelRef( new ModelFsg( fsg ) );
+		mModelMap[ key ] = ModelRef( new ModelFsg( model ) );
 		// Add model to decoder:
-		ps_set_fsg( mDecoder, key.c_str(), fsg );
+		ps_set_fsg( mDecoder, key.c_str(), model );
 		// Set active, if flagged:
 		if( setActive )
 			ps_set_search( mDecoder, key.c_str() );
