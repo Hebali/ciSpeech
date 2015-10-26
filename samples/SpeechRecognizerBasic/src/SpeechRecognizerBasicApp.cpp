@@ -15,7 +15,8 @@ class SpeechRecognizerBasicApp : public App {
 	void update() override;
 	void draw() override;
 	
-	void speechEvent(const std::string& msg);
+	void speechBasicEvent(const std::string& msg);
+	void speechSegmentEvent(const std::vector<std::string>& msg);
 	
 	float mMessageStart;
 	std::string mMessage;
@@ -29,7 +30,8 @@ void SpeechRecognizerBasicApp::setup()
 	ci::fs::path lmPath   = ci::app::getAssetPath( "demo.jsgf" );
 	
 	mRecog = sphinx::Recognizer::create( hmmPath.string(), dictPath.string() );
-	mRecog->connectEventHandler( std::bind( &SpeechRecognizerBasicApp::speechEvent, this, std::placeholders::_1 ) );
+	mRecog->connectEventHandler( std::bind( &SpeechRecognizerBasicApp::speechBasicEvent, this, std::placeholders::_1 ) );
+	//mRecog->connectEventHandler( std::bind( &SpeechRecognizerBasicApp::speechSegmentEvent, this, std::placeholders::_1 ) );
 	mRecog->addModelJsgf( "primary", lmPath, true );
 	mRecog->start();
 }
@@ -52,9 +54,16 @@ void SpeechRecognizerBasicApp::draw()
 		gl::drawStringCentered( mMessage, getWindowCenter() );
 }
 
-void SpeechRecognizerBasicApp::speechEvent(const std::string& msg)
+void SpeechRecognizerBasicApp::speechBasicEvent(const std::string& msg)
 {
 	mMessage = msg;
+	mMessageStart = getElapsedSeconds();
+}
+
+void SpeechRecognizerBasicApp::speechSegmentEvent(const std::vector<std::string>& msg)
+{
+	mMessage.clear();
+	for( const auto& s : msg ) mMessage += s + " ";
 	mMessageStart = getElapsedSeconds();
 }
 

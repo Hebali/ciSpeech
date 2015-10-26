@@ -49,8 +49,30 @@ namespace sphinx {
 		}
 	}
 	
+	void EventHandlerBasic::event(ps_decoder_t* decoder)
+	{
+		char const* message = ps_get_hyp( decoder, NULL );
+		
+		if( mCb != nullptr && message != NULL && strlen( message ) > 0 )
+			mCb( std::string( message ) );
+	}
+	
+	void EventHandlerSegment::event(ps_decoder_t* decoder)
+	{
+		std::vector<std::string> segments;
+		
+		ps_seg_t* iter = ps_seg_iter( decoder, NULL );
+		
+		while( iter != NULL ) {
+			segments.push_back( std::string( ps_seg_word( iter ) ) );
+			iter = ps_seg_next( iter );
+		}
+		
+		if( ! segments.empty() )
+			mCb( segments );
+	}
+	
 	Recognizer::Recognizer() :
-		mEventCb( nullptr ),
 		mStop( false ),
 		mThread(),
 		mConfig( NULL ),
@@ -82,7 +104,6 @@ namespace sphinx {
 		ci::audio::Buffer destBuffer( converter->getDestMaxFramesPerBlock(), converter->getDestNumChannels() );
 		
 		bool utt_started, in_speech;
-		char const* message;
 
 		if( ps_start_utt( mDecoder ) < 0 )
 			throw std::runtime_error( "Could not start utterance" );
@@ -103,7 +124,7 @@ namespace sphinx {
 			// Cleanup buffer data:
 			delete[] data;
 			
-			in_speech = ps_get_in_speech( mDecoder );
+			in_speech = static_cast<bool>( ps_get_in_speech( mDecoder ) );
 			
 			if( in_speech && ! utt_started ) {
 				utt_started = true;
@@ -113,13 +134,9 @@ namespace sphinx {
 				// Start new utterance on speech to silence transition:
 				ps_end_utt( mDecoder );
 				
-				// Get hypothesis from decoder:
-				message = ps_get_hyp( mDecoder, NULL );
-				
-				// Handle recognition event:
-				if( message != NULL && strlen( message ) > 0 )
-					if( mEventCb != nullptr )
-						mEventCb( std::string( message ) );
+				// Pass to handler:
+				if( mHandler )
+					mHandler->event( mDecoder );
 				
 				// Prepare for next utterance:
 				if( ps_start_utt( mDecoder ) < 0 )
@@ -146,9 +163,19 @@ namespace sphinx {
 		mModelMap.clear();
 	}
 	
-	void Recognizer::connectEventHandler(const CallbackFn& eventHandler)
+	void Recognizer::connectEventHandler(const EventHandlerRef& eventHandler)
 	{
-		mEventCb = eventHandler;
+		mHandler = eventHandler;
+	}
+	
+	void Recognizer::connectEventHandler(const std::function<void(const std::string&)>& eventCb)
+	{
+		connectEventHandler( EventHandlerRef( new EventHandlerBasic( eventCb ) ) );
+	}
+	
+	void Recognizer::connectEventHandler(const std::function<void(const std::vector<std::string>&)>& eventCb)
+	{
+		connectEventHandler( EventHandlerRef( new EventHandlerSegment( eventCb ) ) );
 	}
 	
 	void Recognizer::addModelJsgf(const std::string& key, const ci::fs::path& jsgfPath, bool setActive)

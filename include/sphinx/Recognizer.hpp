@@ -44,7 +44,63 @@
 namespace sphinx {
 	
 	typedef std::shared_ptr<class Recognizer>	RecognizerRef;
+	typedef std::shared_ptr<class EventHandler>	EventHandlerRef;
 	typedef std::shared_ptr<class Model>		ModelRef;
+	
+	/** @brief event handler abstract base class */
+	class EventHandler
+	{
+	  public:
+		
+		/** @brief default constructor */
+		EventHandler() { /* no-op */ }
+		
+		/** @brief virtual destructor */
+		virtual ~EventHandler() { /* no-op */ }
+		
+		/** @brief pure virtual event function */
+		virtual void event(ps_decoder_t* decoder) = 0;
+	};
+	
+	/** @brief basic event handler */
+	class EventHandlerBasic : public EventHandler
+	{
+	  public:
+		
+		typedef std::function<void(const std::string&)> CallbackFn;
+	
+	  private:
+		
+		CallbackFn mCb;
+		
+	  public:
+		
+		/** @brief default constructor */
+		EventHandlerBasic(const CallbackFn& fn) : mCb( fn ) { /* no-op */ }
+		
+		/** @brief pure virtual event function */
+		void event(ps_decoder_t* decoder);
+	};
+	
+	/** @brief word segmentation event handler */
+	class EventHandlerSegment : public EventHandler
+	{
+	  public:
+		
+		typedef std::function<void(const std::vector<std::string>&)> CallbackFn;
+		
+	  private:
+		
+		CallbackFn mCb;
+		
+	  public:
+		
+		/** @brief default constructor */
+		EventHandlerSegment(const CallbackFn& fn) : mCb( fn ) { /* no-op */ }
+		
+		/** @brief pure virtual event function */
+		void event(ps_decoder_t* decoder);
+	};
 	
 	/** @brief language model base class */
 	class Model
@@ -77,14 +133,9 @@ namespace sphinx {
 	/** @brief speech recognizer */
 	class Recognizer
 	{
-	  public:
-		
-		typedef std::function<void(const std::string&)> CallbackFn; //!< typedef for recognition event handler
-		
 	  private:
 		
-		CallbackFn							mEventCb;		//!< event handler
-		
+		EventHandlerRef						mHandler;		//!< event handler
 		std::atomic<bool>					mStop;			//!< runner flag
 		std::thread							mThread;		//!< runner thread
 		
@@ -120,8 +171,14 @@ namespace sphinx {
 		/** @brief destructor */
 		~Recognizer();
 		
-		/** @brief connects event handler to recognizer */
-		void connectEventHandler(const CallbackFn& eventHandler);
+		/** @brief connects generic event handler */
+		void connectEventHandler(const EventHandlerRef& eventHandler);
+		
+		/** @brief connects basic event handler to recognizer */
+		void connectEventHandler(const std::function<void(const std::string&)>& eventCb);
+		
+		/** @brief connects word segmentation event handler to recognizer */
+		void connectEventHandler(const std::function<void(const std::vector<std::string>&)>& eventCb);
 		
 		/** @brief adds model from JSGF filepath and associates it with key, optionally sets model active */
 		void addModelJsgf(const std::string& key, const ci::fs::path& jsgfPath, bool setActive = true);
