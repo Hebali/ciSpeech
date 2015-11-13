@@ -17,6 +17,7 @@ class SpeechRecognizerBasicApp : public App {
 	
 	void speechBasicEvent(const std::string& msg);
 	void speechSegmentEvent(const std::vector<std::string>& msg);
+	void speechSegmentConfidenceEvent(const std::vector<std::pair<std::string,float> >& msg);
 	
 	float mMessageStart;
 	std::string mMessage;
@@ -32,6 +33,7 @@ void SpeechRecognizerBasicApp::setup()
 	mRecog = sphinx::Recognizer::create( hmmPath.string(), dictPath.string() );
 	mRecog->connectEventHandler( std::bind( &SpeechRecognizerBasicApp::speechBasicEvent, this, std::placeholders::_1 ) );
 	//mRecog->connectEventHandler( std::bind( &SpeechRecognizerBasicApp::speechSegmentEvent, this, std::placeholders::_1 ) );
+	//mRecog->connectEventHandler( std::bind( &SpeechRecognizerBasicApp::speechSegmentConfidenceEvent, this, std::placeholders::_1 ) );
 	mRecog->addModelJsgf( "primary", lmPath, true );
 	mRecog->start();
 }
@@ -63,7 +65,16 @@ void SpeechRecognizerBasicApp::speechBasicEvent(const std::string& msg)
 void SpeechRecognizerBasicApp::speechSegmentEvent(const std::vector<std::string>& msg)
 {
 	mMessage.clear();
-	for( const auto& s : msg ) mMessage += s + " ";
+	for( const auto& s : msg )
+		mMessage += s + " ";
+	mMessageStart = getElapsedSeconds();
+}
+
+void SpeechRecognizerBasicApp::speechSegmentConfidenceEvent(const std::vector<std::pair<std::string,float> >& msg)
+{
+	mMessage.clear();
+	for( const auto& s : msg )
+		mMessage += s.first + "(" + std::to_string( s.second ) + ") ";
 	mMessageStart = getElapsedSeconds();
 }
 

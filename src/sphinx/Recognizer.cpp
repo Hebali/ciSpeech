@@ -72,6 +72,22 @@ namespace sphinx {
 			mCb( segments );
 	}
 	
+	void EventHandlerSegmentConfidence::event(ps_decoder_t *decoder)
+	{
+		std::vector<std::pair<std::string,float> > segments;
+		
+		ps_seg_t* iter = ps_seg_iter( decoder, NULL );
+		
+		while( iter != NULL ) {
+			int32 prob = ps_seg_prob( iter, NULL, NULL, NULL );
+			segments.push_back( { std::string( ps_seg_word( iter ) ), logmath_exp( ps_get_logmath( decoder ), prob ) } );
+			iter = ps_seg_next( iter );
+		}
+		
+		if( ! segments.empty() )
+			mCb( segments );
+	}
+	
 	Recognizer::Recognizer() :
 		mStop( false ),
 		mThread(),
@@ -176,6 +192,11 @@ namespace sphinx {
 	void Recognizer::connectEventHandler(const std::function<void(const std::vector<std::string>&)>& eventCb)
 	{
 		connectEventHandler( EventHandlerRef( new EventHandlerSegment( eventCb ) ) );
+	}
+	
+	void Recognizer::connectEventHandler(const std::function<void(const std::vector<std::pair<std::string,float> >&)>& eventCb)
+	{
+		connectEventHandler( EventHandlerRef( new EventHandlerSegmentConfidence( eventCb ) ) );
 	}
 	
 	void Recognizer::addModelJsgf(const std::string& key, const ci::fs::path& jsgfPath, bool setActive)

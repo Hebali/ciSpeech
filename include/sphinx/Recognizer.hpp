@@ -102,6 +102,26 @@ namespace sphinx {
 		void event(ps_decoder_t* decoder);
 	};
 	
+	/** @brief word segmentation confidence event handler */
+	class EventHandlerSegmentConfidence : public EventHandler
+	{
+	  public:
+		
+		typedef std::function<void(const std::vector<std::pair<std::string,float> >&)> CallbackFn;
+		
+	  private:
+		
+		CallbackFn mCb;
+		
+	  public:
+		
+		/** @brief default constructor */
+		EventHandlerSegmentConfidence(const CallbackFn& fn) : mCb( fn ) { /* no-op */ }
+		
+		/** @brief pure virtual event function */
+		void event(ps_decoder_t* decoder);
+	};
+	
 	/** @brief language model base class */
 	class Model
 	{
@@ -179,6 +199,9 @@ namespace sphinx {
 		
 		/** @brief connects word segmentation event handler to recognizer */
 		void connectEventHandler(const std::function<void(const std::vector<std::string>&)>& eventCb);
+		
+		/** @brief connects word segmentation confidence event handler to recognizer */
+		void connectEventHandler(const std::function<void(const std::vector<std::pair<std::string,float> >&)>& eventCb);
 		
 		/** @brief adds model from JSGF filepath and associates it with key, optionally sets model active */
 		void addModelJsgf(const std::string& key, const ci::fs::path& jsgfPath, bool setActive = true);
